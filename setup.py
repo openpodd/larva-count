@@ -17,6 +17,7 @@ setup(
     ],
     install_requires=[
         'psycopg2',
-        'pandas'
+        'pandas',
+        'xlwt',
     ]
 )
