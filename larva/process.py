@@ -61,7 +61,8 @@ def run(params, conn, outputfile):
                 'found_containers': form_data['found_containers'],
             })
 
-
+    if len(results) == 0:
+        return False
     data = pandas.DataFrame(results)
     data['date'] = data['date'].astype('datetime64[ns]')
     data['village_no'] = data['village_no'].astype('str')
@@ -107,3 +108,4 @@ def run(params, conn, outputfile):
     df.to_excel(writer, 'ci')
     hi_df.to_excel(writer, 'hi')
     writer.save()
+    return True
