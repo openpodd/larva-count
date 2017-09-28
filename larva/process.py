@@ -66,6 +66,8 @@ def run(params, conn, outputfile):
     data = pandas.DataFrame(results)
     data['date'] = data['date'].astype('datetime64[ns]')
     data['village_no'] = data['village_no'].astype('str')
+    data['found_containers'] = data['found_containers'].astype(int)
+    data['total_containers'] = data['total_containers'].astype(int)
 
     valid_data = data[data.total_containers > 0]
     valid_data = valid_data.copy()
