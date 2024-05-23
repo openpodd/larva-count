@@ -6,6 +6,7 @@ import re
 
 def parse_address(address_str):
     if address_str:
+
         def parse_item(item_str):
             im = re.match("\[[^:]+:(.*)\]", item_str)
             if im is not None:
@@ -15,12 +16,12 @@ def parse_address(address_str):
         m = re.match("(\[[^\]]*\])(\[[^\]]*\])(\[[^\]]*\])", address_str)
         if m is not None:
             p, d, s = m.group(1, 2, 3)
-            province = parse_item(p).replace(u'จ. ', '')
-            district = parse_item(d).replace(u'อ. ', '')
-            subdistrict = parse_item(s).replace(u'ต. ', '')
+            province = parse_item(p).replace("จ. ", "")
+            district = parse_item(d).replace("อ. ", "")
+            subdistrict = parse_item(s).replace("ต. ", "")
             return province, district, subdistrict
 
-    return '', '', ''
+    return "", "", ""
 
 
 def run(params, conn, outputfile):
@@ -34,80 +35,105 @@ def run(params, conn, outputfile):
     :param outputfile string filename with fullpath
     :return:
     """
-    date_begin = params['date_begin']
-    date_end = params['date_end']
-    domain_id = params['domain_id']
+    date_begin = params["date_begin"]
+    date_end = params["date_end"]
+    domain_id = params["domain_id"]
 
-    report_type_id = db.fetch_report_type_id(conn, 'larva-count', domain_id)
+    report_type_id = db.fetch_report_type_id(conn, "larva-count", domain_id)
     data = db.fetch_reports(conn, report_type_id, date_begin, date_end, domain_id)
 
     results = []
     for row in data:
-        form_data = row['form_data']
-        province, district, subdistrict = parse_address(form_data.get('address', ''))
-        if 'total_containers' in form_data and 'found_containers' in form_data:
-            results.append({
-                'report_id': row['report_id'],
-                'date': row['date'],
-                'latitude': row['latitude'],
-                'longitude': row['longitude'],
-                'province': province,
-                'district': district,
-                'subdistrict': subdistrict,
-                'village_no': str(form_data.get('village_no', '')),
-                'place': form_data.get('place', ''),
-                'house_no_name': form_data.get('house_no_name', ''),
-                'total_containers': form_data['total_containers'],
-                'found_containers': form_data['found_containers'],
-            })
+        form_data = row["form_data"]
+        province, district, subdistrict = parse_address(form_data.get("address", ""))
+        if "total_containers" in form_data and "found_containers" in form_data:
+            results.append(
+                {
+                    "report_id": row["report_id"],
+                    "date": row["date"],
+                    "latitude": row["latitude"],
+                    "longitude": row["longitude"],
+                    "province": province,
+                    "district": district,
+                    "subdistrict": subdistrict,
+                    "village_no": form_data.get("village_no", ""),
+                    "place": form_data.get("place", ""),
+                    "house_no_name": form_data.get("house_no_name", ""),
+                    "total_containers": form_data["total_containers"],
+                    "found_containers": form_data["found_containers"],
+                }
+            )
 
     if len(results) == 0:
         return False
     data = pandas.DataFrame(results)
-    data['date'] = data['date'].astype('datetime64[ns]')
-    data['village_no'] = data['village_no'].astype('str')
-    data['found_containers'] = data['found_containers'].astype(int)
-    data['total_containers'] = data['total_containers'].astype(int)
+    data["date"] = data["date"].astype("datetime64[ns]")
+    data["village_no"] = data["village_no"].astype("unicode")
+    data["found_containers"] = data["found_containers"].astype(int)
+    data["total_containers"] = data["total_containers"].astype(int)
 
     valid_data = data[data.total_containers > 0]
     valid_data = valid_data.copy()
-    valid_data['ci'] = valid_data['found_containers'] / valid_data['total_containers'] * 100
-    valid_data['ci'] = valid_data.apply(lambda row: float("{0:.2f}".format(row['ci'])), axis=1)
-    valid_data['ci_found'] = valid_data.apply(lambda row: 1 if row['ci'] > 0 else 0, axis=1)
+    valid_data["ci"] = (
+        valid_data["found_containers"] / valid_data["total_containers"] * 100
+    )
+    valid_data["ci"] = valid_data.apply(
+        lambda row: float("{0:.2f}".format(row["ci"])), axis=1
+    )
+    valid_data["ci_found"] = valid_data.apply(
+        lambda row: 1 if row["ci"] > 0 else 0, axis=1
+    )
 
-    house_df = valid_data.loc[valid_data['place'] == u'บ้าน']
-    non_house_df = valid_data.loc[valid_data['place'] != u'บ้าน']
-    house_summary_df = house_df.groupby(['province', 'district', 'subdistrict', 'village_no'])
+    house_df = valid_data.loc[valid_data["place"] == "บ้าน"]
+    non_house_df = valid_data.loc[valid_data["place"] != "บ้าน"]
+    house_summary_df = house_df.groupby(
+        ["province", "district", "subdistrict", "village_no"]
+    )
 
     values = []
-    values.append([
-        'province',
-        'district',
-        'subdistrict',
-        'village',
-        'found_houses',
-        'total_houses',
-        'HI'
-    ])
+    values.append(
+        [
+            "province",
+            "district",
+            "subdistrict",
+            "village",
+            "found_houses",
+            "total_houses",
+            "HI",
+        ]
+    )
     for name, group in house_summary_df:
-        found = group.loc[group['ci_found'] > 0]
+        found = group.loc[group["ci_found"] > 0]
         cnt_found = len(found)
         cnt_all = len(group)
-        values.append([
-            name[0],
-            name[1],
-            name[2],
-            name[3],
-            cnt_found,
-            cnt_all,
-            float("{0:.2f}".format((float(cnt_found) / cnt_all) * 100.00))
-        ])
+        values.append(
+            [
+                name[0],
+                name[1],
+                name[2],
+                name[3],
+                cnt_found,
+                cnt_all,
+                float("{0:.2f}".format((float(cnt_found) / cnt_all) * 100.00)),
+            ]
+        )
 
     hi_df = pandas.DataFrame(values)
 
     writer = pandas.ExcelWriter(outputfile)
-    df = valid_data[['province', 'district', 'subdistrict', 'village_no', 'place', 'found_containers', 'total_containers', 'ci']]
-    df.to_excel(writer, 'ci')
-    hi_df.to_excel(writer, 'hi')
+    df = valid_data[
+        [
+            "province",
+            "district",
+            "subdistrict",
+            "village_no",
+            "place",
+            "found_containers",
+            "total_containers",
+            "ci",
+        ]
+    ]
+    df.to_excel(writer, "ci")
+    hi_df.to_excel(writer, "hi")
     writer.save()
     return True
